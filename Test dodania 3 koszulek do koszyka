@@ -1,0 +1,72 @@
+# test_add_three_shirts_to_cart_with_sleep.py
+
+import time
+import pytest
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# Trzy koszulki do dodania (url, qty)
+PRODUCTS = [
+    ("http://www.selenium-shop.pl/produkt/koszulka-tottenham-hotspur-f-c/", 1),
+    ("http://www.selenium-shop.pl/produkt/14/",                       1),
+    ("http://www.selenium-shop.pl/produkt/koszulka-liverpool-fc/",    1),
+]
+
+CART_URL = "http://www.selenium-shop.pl/koszyk/"
+
+@pytest.fixture
+def driver():
+    driver = webdriver.Chrome()
+    driver.maximize_window()
+    yield driver
+    driver.quit()
+
+def test_add_three_shirts_to_cart_with_sleep(driver):
+    added_count = 0
+
+    for url, qty in PRODUCTS:
+        driver.get(url)
+        # jeśli jest pole ilości, ustawiamy
+        try:
+            qty_input = WebDriverWait(driver, 5).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "input.qty"))
+            )
+            qty_input.clear()
+            qty_input.send_keys(str(qty))
+        except TimeoutException:
+            pass
+
+        # spróbuj dodać do koszyka
+        try:
+            add_btn = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button.single_add_to_cart_button"))
+            )
+            add_btn.click()
+
+            # <-- dodatkowe oczekiwanie 2 sekundy -->
+            time.sleep(2)
+
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, ".woocommerce-message"))
+            )
+            added_count += 1
+        except TimeoutException:
+            print(f"⚠️ Nie udało się dodać koszulki pod adresem: {url}")
+
+    # przejdź do koszyka i policz wiersze
+    driver.get(CART_URL)
+    rows = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "tr.cart_item"))
+    )
+    actual_count = len(rows)
+
+    # wypisz wynik
+    print(f"✅ Udało się dodać {added_count} koszulki.")
+    print(f"🛒 W koszyku aktualnie jest {actual_count} pozycji.")
+
+    # asercje: powinny się zgadzać
+    assert added_count == 3, f"Oczekiwano, że dodamy 3 koszulki, ale dodało się {added_count}"
+    assert actual_count == 3, f"Oczekiwano 3 pozycji w koszyku, ale jest {actual_count}"
