@@ -1,0 +1,17 @@
+# test_shop_single.py
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+
+
+def test_homepage_basic():
+    driver = webdriver.Chrome(service=Service())          # Selenium Manager pobierze chromedrivera
+    driver.get("http://www.selenium-shop.pl/")
+    time.sleep(5)                                         # pauza 5 s – zgodnie z Twoją prośbą
+
+    # Asercje
+    assert "Selenium Shop" in driver.title
+    assert driver.find_elements(By.TAG_NAME, "a"), "Brak linków <a> na stronie"
+
+    driver.quit()
