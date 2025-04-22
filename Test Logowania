@@ -1,0 +1,25 @@
+# test_login_prefill.py
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+
+
+# <<< tutaj ustaw dowolne dane >>>
+LOGIN    = "demo@example.com"
+PASSWORD = "Demo123!"            # wpisz cokolwiek – strona nie sprawdza formatu
+
+
+def test_prefill_login_password():
+    driver = webdriver.Chrome(service=Service())          # Selenium Manager pobierze chromedrivera
+    driver.get("http://www.selenium-shop.pl/moje-konto/")
+    time.sleep(2)                                         # krótki wait na załadowanie DOM
+
+    driver.find_element(By.ID, "username").send_keys(LOGIN)
+    driver.find_element(By.ID, "password").send_keys(PASSWORD)
+
+    # asercje – pola naprawdę zawierają wpisane wartości
+    assert driver.find_element(By.ID, "username").get_attribute("value") == LOGIN
+    assert driver.find_element(By.ID, "password").get_attribute("value") == PASSWORD
+
+    driver.quit()
