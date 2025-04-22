@@ -1,0 +1,48 @@
+# test_add_two_items_to_cart_with_sleep.py
+
+import time
+import pytest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+PRODUCT_URL = "http://www.selenium-shop.pl/produkt/koszulka-manchester-fc-city/"
+
+@pytest.fixture
+def driver():
+    driver = webdriver.Chrome()
+    driver.maximize_window()
+    yield driver
+    driver.quit()
+
+def test_add_two_items_to_cart_with_sleep(driver):
+    # 1. Otwórz stronę produktu i ustaw ilość na 2
+    driver.get(PRODUCT_URL)
+    qty = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "input.qty"))
+    )
+    qty.clear()
+    qty.send_keys("2")
+
+    # 2. Kliknij „Dodaj do koszyka”
+    add_btn = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "button.single_add_to_cart_button"))
+    )
+    add_btn.click()
+
+    # 2a. Poczekaj 5 sekund (time.sleep)
+    time.sleep(5)
+
+    # 3. Poczekaj na komunikat i kliknij „Wyświetl koszyk”
+    view_cart = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, ".woocommerce-message a"))
+    )
+    view_cart.click()
+
+    # 4. Na stronie koszyka sprawdź, że ilość produktu to 2
+    cart_qty = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "input.qty"))
+    )
+    assert cart_qty.get_attribute("value") == "2", \
+        f"Oczekiwano, że w koszyku będzie 2 sztuki, ale było {cart_qty.get_attribute('value')}"
