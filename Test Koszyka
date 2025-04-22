@@ -1,0 +1,12 @@
+# test_open_cart.py
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+
+
+def test_open_cart_page():
+    driver = webdriver.Chrome(service=Service())      # Selenium Manager pobiera chromedrivera
+    driver.get("http://www.selenium-shop.pl/koszyk/")
+    time.sleep(5)                                     # opcjonalna 5‑sekundowa pauza
+    assert "Koszyk" in driver.title
+    driver.quit()
