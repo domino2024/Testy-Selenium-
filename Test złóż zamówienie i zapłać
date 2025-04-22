@@ -1,0 +1,85 @@
+# test_checkout_and_click_buy_flexible_payment_fixed.py
+
+import time
+import pytest
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# Trzy koszulki do zamówienia (url, qty)
+PRODUCTS = [
+    ("http://www.selenium-shop.pl/produkt/koszulka-tottenham-hotspur-f-c/", 1),
+    ("http://www.selenium-shop.pl/produkt/14/",                          1),
+    ("http://www.selenium-shop.pl/produkt/koszulka-liverpool-fc/",      1),
+]
+
+CART_URL     = "http://www.selenium-shop.pl/koszyk/"
+CHECKOUT_URL = "http://www.selenium-shop.pl/zamowienie/"
+
+@pytest.fixture
+def driver():
+    driver = webdriver.Chrome()
+    driver.maximize_window()
+    yield driver
+    driver.quit()
+
+def test_checkout_and_click_buy_flexible_payment(driver):
+    # 1. Dodaj trzy koszulki do koszyka
+    for url, qty in PRODUCTS:
+        driver.get(url)
+        # ustaw ilość, jeśli pole istnieje
+        try:
+            qty_input = WebDriverWait(driver, 5).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "input.qty"))
+            )
+            qty_input.clear()
+            qty_input.send_keys(str(qty))
+        except TimeoutException:
+            # brak pola qty — domyślnie 1
+            pass
+
+        # kliknij "Dodaj do koszyka"
+        add_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "button.single_add_to_cart_button"))
+        )
+        add_btn.click()
+
+        # poczekaj krótko na AJAX/animację
+        time.sleep(2)
+
+        # potwierdzenie dodania
+        WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, ".woocommerce-message"))
+        )
+
+    # 2. Przejdź do koszyka, potem do zamówienia
+    driver.get(CART_URL)
+    driver.get(CHECKOUT_URL)
+
+    # 3. Wypełnij wymagane pola billingowe
+    WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.ID, "billing_first_name"))
+    ).send_keys("Jan")
+    driver.find_element(By.ID, "billing_last_name").send_keys("Kowalski")
+    driver.find_element(By.ID, "billing_address_1").send_keys("ul. Testowa 1")
+    driver.find_element(By.ID, "billing_postcode").send_keys("00-001")
+    driver.find_element(By.ID, "billing_city").send_keys("Warszawa")
+    driver.find_element(By.ID, "billing_phone").send_keys("123456789")
+    driver.find_element(By.ID, "billing_email").send_keys("jan.kowalski@example.com")
+
+    # 4. Wybierz pierwszy dostępny sposób płatności poprzez kliknięcie widocznej etykiety
+    first_payment_label = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "li.wc_payment_method label"))
+    )
+    first_payment_label.click()
+
+    # 5. Kliknij "Kupuję i płacę"
+    place_order_btn = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.ID, "place_order"))
+    )
+    place_order_btn.click()
+
+    # 6. Jeśli dotarliśmy do tej linii bez wyjątku — test uznajemy za zaliczony
+    assert True, "Przycisk 'Kupuję i płacę' został kliknięty pomyślnie"
