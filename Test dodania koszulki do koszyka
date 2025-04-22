@@ -1,0 +1,30 @@
+# test_add_specific_tshirt_to_cart.py
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+
+
+def test_add_leicester_tshirt_to_cart():
+    driver = webdriver.Chrome(service=Service())
+    driver.implicitly_wait(3)
+
+    # 1) Otwórz stronę konkretnej koszulki
+    driver.get("http://www.selenium-shop.pl/produkt/koszulka-leicester-fc-city/")
+    time.sleep(5)  # dajemy chwilę na załadowanie strony i JS
+
+    # 2) Znajdź i kliknij przycisk 'Dodaj do koszyka'
+    add_btn = driver.find_element(By.CSS_SELECTOR, "button.single_add_to_cart_button")
+    add_btn.click()
+    time.sleep(2)  # krótka pauza na przetworzenie dodania
+
+    # 3) Przejdź do koszyka i poczekaj
+    driver.get("http://www.selenium-shop.pl/koszyk/")
+    time.sleep(5)
+
+    # 4) Sprawdź, że w koszyku jest co najmniej jedna pozycja
+    cart_items = driver.find_elements(By.CSS_SELECTOR, "tr.cart_item")
+    assert cart_items, "Koszyk jest pusty – produkt nie został dodany"
+
+    driver.quit()
+
