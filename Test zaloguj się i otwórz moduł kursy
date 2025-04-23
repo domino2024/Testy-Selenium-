@@ -1,0 +1,47 @@
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.service import Service
+
+class TestLogowanieIKursy(unittest.TestCase):
+
+    def setUp(self):
+        # Wprowadź prawdziwe dane logowania tutaj
+        self.NAZWA_UZYTKOWNIKA = "Dominik"  # <- wpisz prawdziwego użytkownika
+        self.HASLO = "domino2024"  # <- wpisz prawdziwe hasło
+
+        options = webdriver.ChromeOptions()
+        options.add_argument('--start-maximized')
+        self.driver = webdriver.Chrome(service=Service(), options=options)
+
+    def test_logowanie_i_modul_kursy(self):
+        driver = self.driver
+        driver.get("https://mmrmqpr585.publigo.onl/wp-login.php")
+        time.sleep(2)
+
+        pole_nazwa_uzytkownika = driver.find_element(By.ID, "user_login")
+        pole_haslo = driver.find_element(By.ID, "user_pass")
+
+        pole_nazwa_uzytkownika.send_keys(self.NAZWA_UZYTKOWNIKA)
+        pole_haslo.send_keys(self.HASLO)
+
+        self.assertEqual(pole_nazwa_uzytkownika.get_attribute("value"), self.NAZWA_UZYTKOWNIKA)
+        self.assertEqual(pole_haslo.get_attribute("value"), self.HASLO)
+
+        driver.find_element(By.ID, "wp-submit").click()
+
+        try:
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "wpadminbar")))
+            driver.get("https://mmrmqpr585.publigo.onl/wp-admin/admin.php?page=wp-idea-courses")
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
+            print("Test przeszedł - zalogowano i strona modułu kursy otwarta poprawnie.")
+        except TimeoutException:
+            self.fail("Test nie przeszedł - strona nie załadowała się w odpowiednim czasie.")
+
+    def tearDown(self):
+        time.sleep(2)
+        self.driver.quit()
+
+if __name__ == "__main__":
+    unittest.main()
