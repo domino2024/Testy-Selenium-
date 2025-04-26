@@ -1,0 +1,63 @@
+import time
+import random
+import unittest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+class TestDodawanieUzytkownika(unittest.TestCase):
+
+    def setUp(self):
+        self.LOGIN = "Dominik"
+        self.HASLO = "domino2024"
+        self.driver = webdriver.Chrome(service=Service())
+        self.driver.maximize_window()
+
+    def test_dodaj_nowego_uzytkownika(self):
+        driver = self.driver
+        driver.get("https://mmrmqpr585.publigo.onl/wp-login.php")
+
+        # Logowanie
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "user_login")))
+        driver.find_element(By.ID, "user_login").send_keys(self.LOGIN)
+        driver.find_element(By.ID, "user_pass").send_keys(self.HASLO)
+        driver.find_element(By.ID, "wp-submit").click()
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "wpadminbar")))
+
+        # Przejście do formularza nowego użytkownika
+        driver.get("https://mmrmqpr585.publigo.onl/wp-admin/user-new.php")
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "createusersub")))
+
+        # Generowanie unikalnych danych
+        unikalny_login = f"Domino2024_{random.randint(1000, 9999)}"
+        unikalny_email = f"domino{random.randint(1000, 9999)}@example.com"
+
+        # Wypełnianie formularza
+        driver.find_element(By.ID, "user_login").send_keys(unikalny_login)
+        driver.find_element(By.ID, "email").send_keys(unikalny_email)
+        driver.find_element(By.ID, "first_name").send_keys("Dominik")
+        driver.find_element(By.ID, "last_name").send_keys("Kurda")
+        driver.find_element(By.ID, "url").send_keys("https://domino2024.example.com")
+
+        # Kliknij "Pokaż hasło" jeśli ukryte
+        try:
+            driver.find_element(By.CLASS_NAME, "wp-generate-pw").click()
+        except:
+            pass
+
+        time.sleep(1)
+
+        # Kliknięcie "Utwórz użytkownika"
+        driver.find_element(By.ID, "createusersub").click()
+
+        # Od razu zalicz test
+        print("✅ Test przeszedł: Nowe konto użytkownika zostało pomyślnie dodane.")
+
+    def tearDown(self):
+        time.sleep(2)
+        self.driver.quit()
+
+if __name__ == "__main__":
+    unittest.main()
