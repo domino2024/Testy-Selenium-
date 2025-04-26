@@ -1,0 +1,49 @@
+import time
+import unittest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+
+class TestWylogowania(unittest.TestCase):
+
+    def setUp(self):
+        self.LOGIN = "Dominik"
+        self.HASLO = "domino2024"
+        self.driver = webdriver.Chrome(service=Service())
+        self.driver.maximize_window()
+
+    def test_admin_moze_sie_wylogowac(self):
+        driver = self.driver
+        driver.get("https://mmrmqpr585.publigo.onl/wp-login.php")
+
+        # Logowanie
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "user_login")))
+        driver.find_element(By.ID, "user_login").send_keys(self.LOGIN)
+        driver.find_element(By.ID, "user_pass").send_keys(self.HASLO)
+        driver.find_element(By.ID, "wp-submit").click()
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "wpadminbar")))
+
+        # Najechanie na avatar (menu użytkownika)
+        avatar = driver.find_element(By.ID, "wp-admin-bar-my-account")
+        ActionChains(driver).move_to_element(avatar).perform()
+
+        # Kliknij "Wyloguj się"
+        wyloguj = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.ID, "wp-admin-bar-logout"))
+        )
+        wyloguj.click()
+
+        # Sprawdzenie, czy pojawił się formularz logowania
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "loginform")))
+
+        print("✅ Test przeszedł: Użytkownik został poprawnie wylogowany.")
+
+    def tearDown(self):
+        time.sleep(2)
+        self.driver.quit()
+
+if __name__ == "__main__":
+    unittest.main()
