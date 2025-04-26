@@ -1,0 +1,66 @@
+import time
+import unittest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+
+class TestUsuwanieUzytkownika(unittest.TestCase):
+
+    def setUp(self):
+        self.LOGIN = "Dominik"
+        self.HASLO = "domino2024"
+        self.driver = webdriver.Chrome(service=Service())
+        self.driver.maximize_window()
+
+    def test_usun_uzytkownika(self):
+        driver = self.driver
+        driver.get("https://mmrmqpr585.publigo.onl/wp-login.php")
+
+        # Logowanie
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "user_login")))
+        driver.find_element(By.ID, "user_login").send_keys(self.LOGIN)
+        driver.find_element(By.ID, "user_pass").send_keys(self.HASLO)
+        driver.find_element(By.ID, "wp-submit").click()
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "wpadminbar")))
+
+        # Przejście do listy użytkowników
+        driver.get("https://mmrmqpr585.publigo.onl/wp-admin/users.php")
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "the-list")))
+
+        users = driver.find_elements(By.CSS_SELECTOR, "#the-list tr")
+        found = False
+
+        for user in users:
+            username_element = user.find_element(By.CSS_SELECTOR, "strong a")
+            username = username_element.text
+            if username.startswith("Domino2024_"):
+                found = True
+
+                # Najechanie kursorem na użytkownika
+                actions = ActionChains(driver)
+                actions.move_to_element(user).perform()
+
+                # Kliknij "Usuń"
+                delete_link = user.find_element(By.CLASS_NAME, "submitdelete")
+                delete_link.click()
+                break
+
+        if not found:
+            self.fail("❌ Nie znaleziono użytkownika do usunięcia.")
+
+        # Kliknij "Potwierdź usunięcie"
+        WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.ID, "submit"))
+        ).click()
+
+        print("✅ Kliknięto usuń i potwierdzono usunięcie użytkownika.")
+
+    def tearDown(self):
+        time.sleep(2)
+        self.driver.quit()
+
+if __name__ == "__main__":
+    unittest.main()
