@@ -1,0 +1,64 @@
+import unittest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import time
+
+class TestDodawanieKategoriiDownload(unittest.TestCase):
+
+    def setUp(self):
+        self.LOGIN = "Dominik"
+        self.HASLO = "domino2024"
+        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+        self.driver.maximize_window()
+
+    def test_dodaj_nowa_kategorie(self):
+        driver = self.driver
+
+        # 1. Otwórz stronę logowania
+        driver.get("https://mmrmqpr585.publigo.onl/wp-login.php")
+        time.sleep(1)
+
+        # 2. Logowanie
+        driver.find_element(By.ID, "user_login").send_keys(self.LOGIN)
+        driver.find_element(By.ID, "user_pass").send_keys(self.HASLO)
+        driver.find_element(By.ID, "wp-submit").click()
+        time.sleep(2)
+
+        # 3. Przejdź do strony kategorii produktów cyfrowych
+        driver.get("https://mmrmqpr585.publigo.onl/wp-admin/edit-tags.php?taxonomy=download_category&post_type=download")
+        time.sleep(2)
+
+        # 4. Wypełnij formularz:
+        # Nazwa kategorii
+        driver.find_element(By.ID, "tag-name").send_keys("test1")
+
+        # Uproszczona nazwa (slug)
+        driver.find_element(By.ID, "tag-slug").send_keys("tes1")
+
+        # Kategoria nadrzędna (np. Kursy)
+        parent_select = Select(driver.find_element(By.ID, "parent"))
+        parent_select.select_by_visible_text("Kursy")  # Uwaga! Kategoria 'Kursy' musi istnieć
+
+        # Opis
+        driver.find_element(By.ID, "tag-description").send_keys("operacja poprawna")
+
+        time.sleep(1)
+
+        # 5. Kliknij "Dodaj nową kategorię"
+        driver.find_element(By.ID, "submit").click()
+        time.sleep(2)
+
+        # 6. Automatyczne sprawdzenie czy kategoria została dodana
+        lista_kategorii = driver.find_element(By.ID, "the-list").text.lower()
+        self.assertIn("test1", lista_kategorii, "❌ Kategoria 'test1' NIE została dodana!")
+
+        print("✅ Kategoria 'test1' została dodana poprawnie!")
+
+    def tearDown(self):
+        self.driver.quit()
+
+if __name__ == "__main__":
+    unittest.main()
