@@ -1,0 +1,67 @@
+import unittest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import time
+
+class TestMasoweTworzenieKategorii(unittest.TestCase):
+
+    def setUp(self):
+        self.LOGIN = "Dominik"
+        self.HASLO = "domino2024"
+        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+        self.driver.maximize_window()
+
+    def test_masowe_dodawanie_kategorii(self):
+        driver = self.driver
+
+        # 1. Logowanie
+        driver.get("https://mmrmqpr585.publigo.onl/wp-login.php")
+        time.sleep(1)
+        driver.find_element(By.ID, "user_login").send_keys(self.LOGIN)
+        driver.find_element(By.ID, "user_pass").send_keys(self.HASLO)
+        driver.find_element(By.ID, "wp-submit").click()
+        time.sleep(2)
+
+        # 2. Przejdź do kategorii produktów cyfrowych
+        driver.get("https://mmrmqpr585.publigo.onl/wp-admin/edit-tags.php?taxonomy=download_category&post_type=download")
+        time.sleep(2)
+
+        # 3. Masowe dodawanie kategorii
+        for i in range(1, 6):  # od test1 do test5
+            nazwa = f"test{i}"
+            slug = f"tes{i}"
+
+            # Wypełnij formularz
+            driver.find_element(By.ID, "tag-name").clear()
+            driver.find_element(By.ID, "tag-name").send_keys(nazwa)
+
+            driver.find_element(By.ID, "tag-slug").clear()
+            driver.find_element(By.ID, "tag-slug").send_keys(slug)
+
+            # Wybierz kategorię nadrzędną - "Kursy"
+            parent_select = Select(driver.find_element(By.ID, "parent"))
+            parent_select.select_by_visible_text("Kursy")
+
+            driver.find_element(By.ID, "tag-description").clear()
+            driver.find_element(By.ID, "tag-description").send_keys(f"Opis dla {nazwa}")
+
+            time.sleep(1)
+
+            # Kliknij "Dodaj nową kategorię"
+            driver.find_element(By.ID, "submit").click()
+            time.sleep(2)
+
+            # Sprawdź, czy kategoria została dodana
+            lista_kategorii = driver.find_element(By.ID, "the-list").text.lower()
+            self.assertIn(nazwa.lower(), lista_kategorii, f"❌ Kategoria {nazwa} NIE została dodana!")
+
+            print(f"✅ Kategoria {nazwa} została dodana poprawnie!")
+
+    def tearDown(self):
+        self.driver.quit()
+
+if __name__ == "__main__":
+    unittest.main()
