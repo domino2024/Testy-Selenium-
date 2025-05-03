@@ -1,0 +1,52 @@
+# test_blazedemo_boston_berlin.py
+"""
+Automatyczny test: Boston → Berlin na https://www.blazedemo.com
+
+• pytest -q                          → okno zamyka się po 5 s
+• pytest -q --hold-browser           → okno: 30 s + 5 s = 35 s
+"""
+
+import time, pytest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+URL   = "https://www.blazedemo.com"
+TITLE = "BlazeDemo"
+
+# ---------- fixture webdriver ---------- #
+@pytest.fixture
+def driver(request):
+    drv = webdriver.Chrome()
+    drv.maximize_window()
+    yield drv
+
+    # ⇣  uniwersalna pauza 5 s
+    print("\n⏳  Zatrzymuję okno na 5 sekund…")
+    time.sleep(5)
+
+    # opcjonalna dłuższa pauza 30 s
+    if request.config.getoption("--hold-browser", default=False):
+        print("🔵  --hold-browser: dodatkowe 30 s.")
+        try:
+            time.sleep(30)
+        except KeyboardInterrupt:
+            pass
+    drv.quit()
+
+# ---------- właściwy test -------------- #
+def test_search_boston_to_berlin(driver):
+    driver.get(URL)
+    WebDriverWait(driver, 10).until(EC.title_is(TITLE))
+
+    Select(driver.find_element(By.NAME, "fromPort")).select_by_visible_text("Boston")
+    Select(driver.find_element(By.NAME, "toPort")).select_by_visible_text("Berlin")
+    driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
+
+    WebDriverWait(driver, 10).until(EC.url_contains("/reserve.php"))
+    header = driver.find_element(By.TAG_NAME, "h3").text
+    assert "Flights from Boston to Berlin" in header
+
+    rows = driver.find_elements(By.CSS_SELECTOR, "table.table tbody tr")
+    assert len(rows) >= 1, "Tabela wyników powinna zawierać co najmniej 1 wiersz"
