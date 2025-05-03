@@ -1,0 +1,91 @@
+# test_rezerwacja_lotu_boston_berlin.py
+
+import time
+import pytest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+URL = "https://www.blazedemo.com"
+TITLE = "BlazeDemo"
+
+@pytest.fixture
+def driver(request):
+    drv = webdriver.Chrome()
+    drv.maximize_window()
+    yield drv
+    # pauza 5 s przed zamknięciem
+    print("\n⏳  Zatrzymuję okno na 5 sekund…")
+    time.sleep(5)
+    # opcjonalna dłuższa pauza 30 s przy --hold-browser
+    if request.config.getoption("--hold-browser", default=False):
+        print("🔵  --hold-browser: dodatkowe 30 s.")
+        time.sleep(30)
+    drv.quit()
+
+def test_rezerwacja_lotu_boston_berlin(driver):
+    # 1. Otwórz główną stronę i poczekaj na tytuł
+    driver.get(URL)
+    WebDriverWait(driver, 10).until(EC.title_is(TITLE))
+
+    # 2. Wybierz trasę Boston → Berlin i kliknij „Find Flights”
+    Select(driver.find_element(By.NAME, "fromPort")).select_by_visible_text("Boston")
+    Select(driver.find_element(By.NAME, "toPort")).select_by_visible_text("Berlin")
+    driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
+
+    # 3. Zweryfikuj, że jesteś na /reserve.php i nagłówek jest poprawny
+    WebDriverWait(driver, 10).until(EC.url_contains("/reserve.php"))
+    header = driver.find_element(By.TAG_NAME, "h3").text
+    assert "Flights from Boston to Berlin" in header, f"Niewłaściwy nagłówek: {header}"
+
+    # 4. Wybierz pierwszy lot
+    rows = WebDriverWait(driver, 5).until(
+        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "table.table tbody tr"))
+    )
+    assert rows, "Brak ofert lotów"
+    rows[0].find_element(By.CSS_SELECTOR, "input[type='submit']").click()
+
+    # 5. Poczekaj na formularz zakupu
+    WebDriverWait(driver, 10).until(EC.url_contains("/purchase.php"))
+
+    # 6. Wypełnij dane pasażera
+    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "inputName"))).send_keys("Jan Kowalski")
+    driver.find_element(By.ID, "address").send_keys("ul. Marszałkowska 1, Warszawa")
+    driver.find_element(By.ID, "city").send_keys("Warszawa")
+    driver.find_element(By.ID, "state").send_keys("Mazowieckie")
+    driver.find_element(By.ID, "zipCode").send_keys("00-001")
+    driver.find_element(By.ID, "creditCardNumber").send_keys("4111111111111111")
+
+    # miesiąc i rok po name
+    month = driver.find_element(By.NAME, "creditCardMonth")
+    month.clear()
+    month.send_keys("12")
+    year = driver.find_element(By.NAME, "creditCardYear")
+    year.clear()
+    year.send_keys("2025")
+
+    driver.find_element(By.ID, "nameOnCard").send_keys("JAN KOWALSKI")
+
+    # opcjonalny checkbox „Remember me”
+    try:
+        remember = driver.find_element(By.ID, "rememberMe")
+        if not remember.is_selected():
+            remember.click()
+    except:
+        pass
+
+    driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
+
+    # 7. Weryfikacja potwierdzenia
+    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
+    confirmation_text = driver.find_element(By.TAG_NAME, "h1").text
+    assert confirmation_text.startswith("Thank you for your purchase"), (
+        f"Nieoczekiwany tekst potwierdzenia: {confirmation_text}"
+    )
+
+    # 8. Sprawdź numer potwierdzenia (pierwsza komórka wiersza wyników)
+    confirmation_id = driver.find_element(
+        By.CSS_SELECTOR, "table tbody tr:nth-child(1) td:nth-child(2)"
+    ).text.strip()
+    assert confirmation_id.isdigit(), f"Numer potwierdzenia nie jest cyfrą: {confirmation_id}"
