@@ -1,0 +1,83 @@
+" test Selenium – liczy, ilu Polek (POL) znajduje się w oficjalnym
+rankingu WTA na stronie live‑tennis.eu.
+
+• Otwiera stronę i akceptuje banner cookies/CMP.
+• Wyszukuje w kodzie tabeli wiersze z kolumną **Country = "POL"**.
+• Jeżeli nie znajdzie żadnej Polki → **FAIL**.
+• W konsoli wypisuje wyłącznie łączną liczbę Polek, np.:
+      Łączna liczba Polek w rankingu WTA: 7
+
+Uruchom:
+    pytest -q test_wta_pol.py
+"""
+
+import os
+import re
+from typing import List
+
+import pytest
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from webdriver_manager.chrome import ChromeDriverManager
+
+URL = "https://live-tennis.eu/en/official-wta-ranking"
+TIMEOUT = 30
+HEADLESS = os.getenv("HEADLESS", "0").lower() in {"1", "true", "yes"}
+
+JS_CLICK_COOKIES = (
+    "var kw=['accept','agree','ok','rozumiem','zgadz','allow all','got it'];"
+    "function clickDoc(doc){for(var e of doc.querySelectorAll('button,a,input[type=button]')){var t=(e.innerText||e.value||'').toLowerCase();if(kw.some(k=>t.includes(k))){try{e.click();return true;}catch(e){}}}return false;}"
+    "if(clickDoc(document)) return true;"
+    "for(var f of document.querySelectorAll('iframe')){try{if(clickDoc(f.contentDocument)) return true;}catch(e){}}return false;"
+)
+
+# regex wyłapuje nazwisko zawodniczki, jeżeli w tym samym wierszu
+# występuje <td>POL</td>
+POL_ROW_RE = re.compile(
+    r"<td[^>]*>\s*\d{1,4}\.?(?:&nbsp;)?\s*</td>\s*<td[^>]*>(?P<player>[^<]+)</td>[\s\S]*?<td[^>]*>POL</td>",
+    re.I,
+)
+
+# ————————————————— WebDriver ——————————————————
+
+def _build_driver():
+    opts = Options()
+    opts.add_argument("--disable-gpu")
+    opts.add_argument("--no-sandbox")
+    opts.add_argument("--disable-dev-shm-usage")
+    opts.add_argument("--remote-allow-origins=*")
+    if HEADLESS:
+        opts.add_argument("--headless=new")
+    return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
+
+
+@pytest.fixture(scope="module")
+def driver():
+    drv = _build_driver()
+    drv.set_page_load_timeout(TIMEOUT)
+    yield drv
+    drv.quit()
+
+# ————————————————— Helper ——————————————————
+
+def _open_with_cookies(driver):
+    driver.get(URL)
+    try:
+        driver.execute_script(JS_CLICK_COOKIES)
+    except Exception:
+        pass
+    WebDriverWait(driver, TIMEOUT).until(lambda d: "table" in d.page_source)
+
+# ————————————————— Test ——————————————————
+
+def test_pol_players_total(driver):
+    """Liczy, ilu zawodniczek z krajem POL znajduje się w tabeli."""
+    _open_with_cookies(driver)
+
+    players: List[str] = [m.group("player").strip() for m in POL_ROW_RE.finditer(driver.page_source)]
+
+    assert players, "Nie znaleziono żadnych zawodniczek z krajem POL."
+
+    print(f"\nŁączna liczba Polek w rankingu WTA: {len(players)}") jak mogę nazwać ten test bardzo prosta polska nazwa 
