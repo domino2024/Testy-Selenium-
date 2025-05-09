@@ -1,25 +1,69 @@
+"""
+Test: strona selenium-shop.pl ładuje się w pełni
+       + zostajemy na niej chwilę, żeby można było ją obejrzeć.
+"""
+
 import time
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+PAGE_URL = "http://www.selenium-shop.pl/"
+PAUSE_AFTER_LOAD = 3          # ile sekund „pozostać na stronie”
 
 @pytest.fixture
 def driver():
+    """Uruchamia Chrome, sprząta po teście; zostawia stronę otwartą kilka s."""
     service = Service(ChromeDriverManager().install())
     options = webdriver.ChromeOptions()
-    # options.add_argument('--headless')  # odkomentuj, jeśli nie chcesz widzieć okna
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
+    # options.add_argument("--headless")  # odkomentuj, jeśli nie potrzebujesz okna
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+
     driver = webdriver.Chrome(service=service, options=options)
-    yield driver
+    driver.implicitly_wait(5)           # pas bezpieczeństwa
+
+    yield driver                        # tutaj wykonywany jest test
+
+    time.sleep(PAUSE_AFTER_LOAD)        # ← zostajemy na stronie X sekund
     driver.quit()
 
+
+def wait_until_page_fully_loaded(driver, timeout: int = 15) -> None:
+    """Dokładny warunek: DOM gotowy + brak aktywnych AJAX-ów + zniknięcie loadera."""
+    wait = WebDriverWait(driver, timeout)
+
+    # 1. dokument w stanie 'complete'
+    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+
+    # 2. brak aktywnych zapytań jQuery (jeśli strona używa jQuery)
+    try:
+        wait.until(lambda d: d.execute_script(
+            "return window.jQuery != undefined && jQuery.active == 0"
+        ))
+    except Exception:
+        pass  # brak jQuery – ignorujemy
+
+    # 3. zniknięcie ewentualnego spinnera/loadera
+    try:
+        wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, ".loader")))
+    except Exception:
+        pass  # brak loadera – ignorujemy
+
+
 def test_open_selenium_shop(driver):
-    url = "http://www.selenium-shop.pl/"
-    driver.get(url)
-    # dodatkowe oczekiwanie na pełne załadowanie
-    time.sleep(5)
-    assert driver.current_url.startswith(url), (
-        f"Oczekiwano URL zaczynającego się od {url}, otrzymano {driver.current_url}"
+    driver.get(PAGE_URL)
+
+    wait_until_page_fully_loaded(driver)  # czekamy aż wszystko się wczyta
+
+    assert driver.current_url.startswith(PAGE_URL), (
+        f"Oczekiwano URL zaczynającego się od {PAGE_URL}, "
+        f"otrzymano {driver.current_url}"
     )
+
+    # po asercji nic już nie robimy – fixture „driver” wstrzyma się jeszcze
+    # PAUSE_AFTER_LOAD sekund, a potem zamknie okno
