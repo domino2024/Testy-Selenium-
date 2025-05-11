@@ -1,0 +1,89 @@
+import os
+import pytest
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+
+# ————————————————— Constants ——————————————————
+
+URL = "https://live-tennis.eu/en/official-wta-ranking"
+TIMEOUT = 30
+HEADLESS = os.getenv("HEADLESS", "0").lower() in {"1", "true", "yes"}
+
+# skrypt do zaakceptowania banneru cookies
+JS_ACCEPT = (
+    "var kw=['accept','agree','ok','rozumiem','zgadz','allow all','got it'];"
+    "function clickDoc(doc){"
+      "for(var e of doc.querySelectorAll('button,a,input[type=button]')){"
+        "var t=(e.innerText||e.value||'').toLowerCase();"
+        "if(kw.some(k=>t.includes(k))){try{e.click();return true;}catch{};}"
+      "}"
+      "return false;"
+    "}"
+    "if(clickDoc(document)) return true;"
+    "for(var f of document.querySelectorAll('iframe')){"
+      "try{if(clickDoc(f.contentDocument))return true;}catch{};"
+    "}"
+    "return false;"
+)
+
+# ————————————————— WebDriver setup ——————————————————
+
+def _build_driver():
+    opts = Options()
+    opts.add_argument("--disable-gpu")
+    opts.add_argument("--no-sandbox")
+    opts.add_argument("--disable-dev-shm-usage")
+    opts.add_argument("--remote-allow-origins=*")
+    if HEADLESS:
+        opts.add_argument("--headless=new")
+    return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
+
+@pytest.fixture(scope="module")
+def driver():
+    drv = _build_driver()
+    drv.set_page_load_timeout(TIMEOUT)
+    yield drv
+    drv.quit()
+
+# ————————————————— Test kolejności pozycji ——————————————————
+
+def test_pozycje_sekwencyjnie(driver):
+    """Sprawdza, że w pierwszej kolumnie tabeli są liczby od 1 do N bez przerw."""
+    driver.get(URL)
+    # kliknij przycisk cookies, jeśli jest widoczny
+    try:
+        driver.execute_script(JS_ACCEPT)
+    except Exception:
+        pass
+
+    # czekaj, aż wiersze tabeli się załadują
+    WebDriverWait(driver, TIMEOUT).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "table tbody tr"))
+    )
+
+    # znajdź wszystkie wiersze
+    rows = driver.find_elements(By.CSS_SELECTOR, "table tbody tr")
+
+    # wyciągnij numery z pierwszej kolumny, pomijając puste/nie-cyfrowe
+    nums = []
+    for row in rows:
+        cell_text = row.find_element(By.CSS_SELECTOR, "td:nth-child(1)").text.strip()
+        cleaned = cell_text.rstrip(".")
+        if cleaned.isdigit():
+            nums.append(int(cleaned))
+
+    assert nums, "Nie znaleziono żadnych numerów pozycji w tabeli."
+    # oczekiwana sekwencja 1,2,3,...,len(nums)
+    expected = list(range(1, len(nums) + 1))
+    assert nums == expected, (
+        f"Pozycje nie są sekwencyjne!\n"
+        f" Otrzymano: {nums[:10]}... (łącznie {len(nums)})\n"
+        f" Oczekiwano: {expected[:10]}..."
+    )
+
+    print(f"\nZnaleziono {len(nums)} pozycji i wszystkie są sekwencyjne od 1 do {len(nums)}")
