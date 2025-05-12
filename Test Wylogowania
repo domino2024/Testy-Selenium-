@@ -1,4 +1,4 @@
-import time
+# test_admin_logout.py
 import unittest
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -19,30 +19,28 @@ class TestWylogowania(unittest.TestCase):
         driver = self.driver
         driver.get("https://mmrmqpr585.publigo.onl/wp-login.php")
 
-        # Logowanie
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "user_login")))
+        # 1) Logowanie
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.presence_of_element_located((By.ID, "user_login")))
         driver.find_element(By.ID, "user_login").send_keys(self.LOGIN)
         driver.find_element(By.ID, "user_pass").send_keys(self.HASLO)
         driver.find_element(By.ID, "wp-submit").click()
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "wpadminbar")))
 
-        # Najechanie na avatar (menu użytkownika)
+        # 2) Czekaj na pasek administracyjny
+        wait.until(EC.presence_of_element_located((By.ID, "wpadminbar")))
+
+        # 3) Rozwiń menu użytkownika przez najechanie na avatar
         avatar = driver.find_element(By.ID, "wp-admin-bar-my-account")
         ActionChains(driver).move_to_element(avatar).perform()
 
-        # Kliknij "Wyloguj się"
-        wyloguj = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.ID, "wp-admin-bar-logout"))
-        )
-        wyloguj.click()
+        # 4) Kliknij „Wyloguj się”
+        logout = wait.until(EC.element_to_be_clickable((By.ID, "wp-admin-bar-logout")))
+        logout.click()
 
-        # Sprawdzenie, czy pojawił się formularz logowania
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "loginform")))
-
-        print("✅ Test przeszedł: Użytkownik został poprawnie wylogowany.")
+        # 5) Sprawdź, że wróciliśmy do formularza logowania
+        wait.until(EC.presence_of_element_located((By.ID, "loginform")))
 
     def tearDown(self):
-        time.sleep(2)
         self.driver.quit()
 
 if __name__ == "__main__":
