@@ -1,19 +1,21 @@
 # test_login_prefill.py
-import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # <<< tutaj ustaw dowolne dane >>>
 LOGIN    = "demo@example.com"
 PASSWORD = "Demo123!"            # wpisz cokolwiek – strona nie sprawdza formatu
 
-
 def test_prefill_login_password():
-    driver = webdriver.Chrome(service=Service())          # Selenium Manager pobierze chromedrivera
+    driver = webdriver.Chrome(service=Service())          # Selenium Manager pobierze chromedrivera
     driver.get("http://www.selenium-shop.pl/moje-konto/")
-    time.sleep(2)                                         # krótki wait na załadowanie DOM
+
+    # czekaj aż pole username będzie widoczne
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.visibility_of_element_located((By.ID, "username")))
 
     driver.find_element(By.ID, "username").send_keys(LOGIN)
     driver.find_element(By.ID, "password").send_keys(PASSWORD)
