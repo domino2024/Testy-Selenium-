@@ -1,0 +1,78 @@
+# test_burger_from_top_to_cart.py
+import re, time, pytest
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
+
+TOP_URL  = "https://jevelin.shufflehound.com/burger-shop/#backtotop"
+CART_URL = "https://jevelin.shufflehound.com/burger-shop/cart/"
+WAIT, STEP = 30, 600      # s / px
+
+# ---------- przeglądarka ----------
+@pytest.fixture
+def driver():
+    opts = webdriver.ChromeOptions()
+    opts.add_argument("--start-maximized")            # okno widoczne
+    # w CI odkomentuj ↓
+    # opts.add_argument("--headless=new")
+    drv = webdriver.Chrome(service=Service(ChromeDriverManager().install()),
+                           options=opts)
+    yield drv
+    drv.quit()
+
+# ---------- helper: lazy scroll ----------
+def scroll_to(drv, txt):
+    last = -1
+    while True:
+        try:
+            return drv.find_element(By.XPATH, f"//*[contains(.,'{txt}')]")
+        except NoSuchElementException:
+            drv.execute_script(f"window.scrollBy(0,{STEP});")
+            time.sleep(0.4)
+            pos = drv.execute_script("return window.pageYOffset")
+            if pos == last:
+                raise AssertionError(f"Nie znalazłem «{txt}»")
+            last = pos
+
+# ---------- test ----------
+def test_burger_in_cart_with_pause(driver):
+    w = WebDriverWait(driver, WAIT)
+
+    # 1️⃣  góra strony
+    driver.get(TOP_URL)
+    w.until(EC.url_contains("#backtotop"))
+
+    # 2️⃣  klik MENU w nawigacji
+    driver.find_element(By.LINK_TEXT, "MENU").click()
+    w.until(EC.url_contains("#menu"))
+
+    # 3️⃣  scroll → Juicy Burger  → Add
+    scroll_to(driver, "Juicy Burger")
+    add_btn = w.until(EC.presence_of_element_located((
+        By.CSS_SELECTOR, "a.add_to_cart_button[aria-label*='Juicy Burger']")))
+    driver.execute_script("arguments[0].scrollIntoView({block:'center'})", add_btn)
+    driver.execute_script("arguments[0].click()", add_btn)
+    time.sleep(2)
+
+    # 4️⃣  koszyk i weryfikacja
+    driver.get(CART_URL)
+    row = w.until(EC.visibility_of_element_located((
+        By.XPATH, "//td[@class='product-name']/a[normalize-space()='Juicy Burger']")))
+    qty = row.find_element(
+        By.XPATH, "../following-sibling::td[contains(@class,'quantity')]//input"
+    ).get_attribute("value")
+    price = row.find_element(
+        By.XPATH, "../following-sibling::td[@class='product-price']").text
+    subtotal = row.find_element(
+        By.XPATH, "../following-sibling::td[@class='product-subtotal']").text
+
+    assert qty == "1"
+    assert re.search(r"£\s*8\.00", price)
+    assert re.search(r"£\s*8\.00", subtotal)
+
+    # 5️⃣  ► zostaw widok koszyka na 5 s
+    time.sleep(5)
