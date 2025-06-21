@@ -1,0 +1,53 @@
+import subprocess
+import time
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# Uruchamiamy aplikację z folderu app/
+flask_process = subprocess.Popen(["python", "app/app.py"])
+
+# Czekamy aż Flask zacznie działać
+for _ in range(20):
+    try:
+        r = requests.get("http://127.0.0.1:5000")
+        if r.status_code == 200:
+            print("✅ Aplikacja Flask działa")
+            break
+    except:
+        time.sleep(1)
+else:
+    print("❌ Nie udało się uruchomić aplikacji Flask.")
+    flask_process.terminate()
+    exit(1)
+
+# Uruchom test w Selenium
+driver = webdriver.Chrome()
+
+try:
+    driver.get("http://127.0.0.1:5000")
+
+    input_liczba = driver.find_element(By.NAME, "liczba")
+    input_liczba.send_keys("2")
+    driver.find_element(By.TAG_NAME, "button").click()
+
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME, "kupon"))
+    )
+
+    for i in range(2):
+        checkboxes = driver.find_elements(By.CSS_SELECTOR, f"input[name='kupon{i}']")
+        for box in checkboxes[:6]:
+            box.click()
+
+    driver.find_element(By.TAG_NAME, "button").click()
+
+    WebDriverWait(driver, 20).until(EC.url_contains("/wyniki"))
+    print("✅ Test zakończony sukcesem!")
+
+finally:
+    time.sleep(3)
+    driver.quit()
+    flask_process.terminate()
