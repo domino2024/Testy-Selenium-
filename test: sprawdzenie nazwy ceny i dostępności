@@ -1,0 +1,43 @@
+import pytest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+PRODUCT_URL = "http://www.selenium-shop.pl/produkt/koszulka-manchester-fc-city/"
+
+@pytest.fixture
+def driver():
+    driver = webdriver.Chrome()
+    driver.maximize_window()
+    yield driver
+    driver.quit()
+
+def test_wyswietlenie_nazwy_ceny_i_dostepnosci(driver):
+    driver.get(PRODUCT_URL)
+
+    # Nazwa produktu
+    product_name = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "h1.product_title"))
+    )
+    assert product_name.text != "", "Nazwa produktu nie została znaleziona!"
+
+    # Cena produktu
+    product_price = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "p.price span.woocommerce-Price-amount"))
+    )
+    assert product_price.text != "", "Cena produktu nie została znaleziona!"
+
+    # Dostępność — WooCommerce nie zawsze pokazuje, więc sprawdzamy 2 przypadki:
+    try:
+        availability = driver.find_element(By.CSS_SELECTOR, "p.stock").text
+    except:
+        availability = "Brak etykiety dostępności, ale produkt widocznie dostępny"
+
+    print(f"\nNazwa: {product_name.text}")
+    print(f"Cena: {product_price.text}")
+    print(f"Dostępność: {availability}")
+
+    #  Test ma przejść, jeśli produkt można kupić (czyli przycisk 'Dodaj do koszyka' istnieje)
+    add_to_cart_button = driver.find_element(By.CSS_SELECTOR, "button.single_add_to_cart_button")
+    assert add_to_cart_button.is_enabled(), 
