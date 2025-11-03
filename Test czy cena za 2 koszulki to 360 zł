@@ -1,0 +1,59 @@
+import re
+import pytest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+PRODUCT_URL = "http://www.selenium-shop.pl/produkt/koszulka-manchester-fc-city/"
+CART_URL = "http://www.selenium-shop.pl/koszyk/"
+
+
+@pytest.fixture
+def driver():
+    driver = webdriver.Chrome()
+    driver.maximize_window()
+    yield driver
+    driver.quit()
+
+
+def test_two_items_price_should_be_360(driver):
+    driver.get(PRODUCT_URL)
+
+    qty = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "input.qty"))
+    )
+    qty.clear()
+    qty.send_keys("2")
+
+    add_btn = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "button.single_add_to_cart_button"))
+    )
+    add_btn.click()
+
+    WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, ".woocommerce-message"))
+    )
+
+    # Dopiero teraz przejdź do koszyka
+    driver.get(CART_URL)
+
+    try:
+        price_element = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, "td.product-subtotal span.woocommerce-Price-amount"))
+        )
+    except:
+        price_element = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, "td.product-subtotal bdi"))
+        )
+
+    cart_total_text = price_element.text
+
+    clean_total = re.sub(r"[^0-9.,]", "", cart_total_text).replace(",", ".")
+    cart_total = float(clean_total)
+
+    print(f"\n>>> Cena w koszyku za 2 sztuki: {cart_total} zł")
+    assert cart_total == 360.00, f"Oczekiwano 360 zł, otrzymano {cart_total} zł"
+
+
+    assert cart_total == 360.00, f"Oczekiwano 360 zł, otrzymano {cart_total} zł"
