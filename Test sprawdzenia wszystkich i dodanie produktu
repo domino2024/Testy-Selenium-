@@ -1,0 +1,90 @@
+import pytest
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+URLS = [
+    # 1. Strona główna
+    "http://www.selenium-shop.pl/",
+
+    # 2. Strony produktów
+    "http://www.selenium-shop.pl/produkt/pilka-nozna-kipsta-f100/",
+    "http://www.selenium-shop.pl/produkt/pilka-nozna-adidas-replika-liga-mistrzow/",
+    "http://www.selenium-shop.pl/produkt/pilka-nozna-adidas-euro-2020/",
+    "http://www.selenium-shop.pl/produkt/koszulka-newcastle-fc-united/",
+    "http://www.selenium-shop.pl/produkt/koszulka-west-ham-united/",
+    "http://www.selenium-shop.pl/produkt/koszulka-tottenham-hotspur-f-c/",
+    "http://www.selenium-shop.pl/produkt/koszulka-leicester-fc-city/",
+    "http://www.selenium-shop.pl/produkt/koszulka-manchester-fc-city/",
+
+    # 3. Sekcje statyczne
+    "http://www.selenium-shop.pl/o-nas/",
+    "http://www.selenium-shop.pl/koszyk/",
+]
+
+EXTRA_AFTER_ADD = [
+    "http://www.selenium-shop.pl/moje-konto/",
+    "http://www.selenium-shop.pl/sklep/",
+    "http://www.selenium-shop.pl/zamowienie/"
+]
+
+PRODUCT_TO_ADD = "http://www.selenium-shop.pl/produkt/koszulka-manchester-fc-city/"
+CART_URL = "http://www.selenium-shop.pl/koszyk/"
+
+
+@pytest.fixture
+def driver():
+    driver = webdriver.Chrome()
+    driver.maximize_window()
+    yield driver
+    driver.quit()
+
+
+def http_ok(url: str) -> int:
+    """Wysyła zapytanie HEAD i zwraca status HTTP."""
+    try:
+        response = requests.head(url, allow_redirects=True, timeout=5)
+        return response.status_code
+    except Exception:
+        return 0
+
+
+def test_sprawdz_strony_i_dodaj_produkt_jesli_koszyk_pusty(driver):
+    print("\n🔍 1. Sprawdzanie wszystkich stron (główna ➜ produkty ➜ sekcje)...\n")
+
+    produkt_dodany = False
+
+    for url in URLS:
+        status = http_ok(url)
+        print(f"🔗 {url} → HTTP {status}")
+        assert status in [200, 301, 302], f"❌ {url} zwrócił status {status}"
+
+        driver.get(url)
+
+        if url == CART_URL:
+            empty = driver.find_elements(By.CSS_SELECTOR, "p.cart-empty")
+            if empty:
+                print("\n🛒 Koszyk pusty — dodaję produkt...\n")
+
+                driver.get(PRODUCT_TO_ADD)
+                add_btn = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button.single_add_to_cart_button"))
+                )
+                add_btn.click()
+                produkt_dodany = True
+
+                print("✅ Produkt dodany — wracam do koszyka.\n")
+                driver.get(CART_URL)
+
+    # ✅ Jeżeli dodaliśmy produkt → sprawdzamy dodatkowe strony
+    if produkt_dodany:
+        print("\n📌 Produkt dodany — sprawdzam dodatkowe strony (Moje konto → Sklep → Zamówienie)\n")
+        for url in EXTRA_AFTER_ADD:
+            status = http_ok(url)
+            print(f"🔗 {url} → HTTP {status}")
+            assert status in [200, 301, 302], f"❌ {url} zwrócił status {status}"
+            driver.get(url)
+
+    print("\n✅ Test zakończony — wszystkie strony sprawdzone!\n")
