@@ -1,0 +1,37 @@
+import pytest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+BASE_URL = "https://conduit-realworld-example-app.fly.dev/#/"
+
+@pytest.fixture
+def driver():
+    driver = webdriver.Chrome()
+    driver.maximize_window()
+    yield driver
+    driver.quit()
+
+def test_navbar_contains_required_links(driver):
+    driver.get(BASE_URL)
+
+    # Czekamy aż navbar się załaduje
+    WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "nav.navbar"))
+    )
+
+    # Pobieramy tekst navbaru
+    navbar = driver.find_element(By.CSS_SELECTOR, "nav.navbar")
+    navbar_text = navbar.text.lower()
+
+
+    #  Aktualne asercje zgodne z UI
+    assert "home" in navbar_text, "Brak linku 'Home' w navbarze!"
+    assert "login" in navbar_text, "Brak linku 'Login' w navbarze!"
+    assert "sign up" in navbar_text, "Brak linku 'Sign up' w navbarze!"
+
+
+    #  Podgląd w konsoli
+    print("\n Zawartość navbaru:")
+    print(navbar_text)
